@@ -39,8 +39,8 @@ import (
 // Ethash proof-of-work protocol constants.
 var (
 	FrontierBlockReward       = big.NewInt(5e+18) // Block reward in wei for successfully mining a block
-	ByzantiumBlockReward      = big.NewInt(3e+18) // Block reward in wei for successfully mining a block upward from Byzantium
-	ConstantinopleBlockReward = big.NewInt(2e+18) // Block reward in wei for successfully mining a block upward from Constantinople
+	ByzantiumBlockReward      = big.NewInt(5e+18) // Block reward in wei for successfully mining a block upward from Byzantium
+	ConstantinopleBlockReward = big.NewInt(5e+18) // Block reward in wei for successfully mining a block upward from Constantinople
 	maxUncles                 = 2                 // Maximum number of uncles allowed in a single block
 	allowedFutureBlockTime    = 15 * time.Second  // Max time from current time allowed for blocks, before they're considered future blocks
 
@@ -627,6 +627,18 @@ func accumulateRewards(config *params.ChainConfig, state *state.StateDB, header 
 	if config.IsConstantinople(header.Number) {
 		blockReward = ConstantinopleBlockReward
 	}
+
+	// chaojigongshi
+	if config.IsArriveHalfTime(header.Number) {
+		r := new(big.Int)
+		i := r.Div(header.Number, config.ChaoJiGongShiSubsidyHalvingInterval).Int64()
+		blockRewardFloat64 := float64(blockReward.Int64())
+		for j := 1; j <= int(i); j++ {
+			blockRewardFloat64 = blockRewardFloat64 * config.ChaoJiGongShiSubsidyHalvingFrequency
+		}
+		blockReward = big.NewInt(int64(blockRewardFloat64))
+	}
+
 	// Accumulate the rewards for the miner and any included uncles
 	reward := new(big.Int).Set(blockReward)
 	r := new(big.Int)
