@@ -171,7 +171,7 @@ func newTestClientHandler(backend *backends.SimulatedBackend, odr *LesOdr, index
 		engine = ethash.NewFaker()
 		gspec  = core.Genesis{
 			Config:   params.AllEthashProtocolChanges,
-			Alloc:    core.GenesisAlloc{bankAddr: {Balance: bankFunds}},
+			Alloc:    core.GenesisAlloc{bankAddr.String(): {Balance: bankFunds}},
 			GasLimit: 100000000,
 		}
 		oracle *checkpointOracle
@@ -227,7 +227,7 @@ func newTestServerHandler(blocks int, indexers []*core.ChainIndexer, db ethdb.Da
 	var (
 		gspec = core.Genesis{
 			Config:   params.AllEthashProtocolChanges,
-			Alloc:    core.GenesisAlloc{bankAddr: {Balance: bankFunds}},
+			Alloc:    core.GenesisAlloc{bankAddr.String(): {Balance: bankFunds}},
 			GasLimit: 100000000,
 		}
 		oracle *checkpointOracle
