@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/btcsuite/btcutil/base58"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -228,9 +229,26 @@ func (a Address) Hex() string {
 	return "0x" + string(result)
 }
 
+func StringToAddress(a string) (Address, error) {
+	if len(a) <= 0 {
+		return Address{}, errors.New("Address cannot be null")
+	}
+	addrb, version, err := base58.CheckDecode(a[3:])
+	if err != nil {
+		return Address{}, err
+	}
+	switch version {
+	case 0:
+		return BytesToAddress(addrb), nil
+	default:
+		return Address{}, errors.New("Invalid address type")
+	}
+}
+
+
 // String implements fmt.Stringer.
 func (a Address) String() string {
-	return a.Hex()
+	return "Gs" + base58.CheckEncode(a[0:20], 0)
 }
 
 // Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
