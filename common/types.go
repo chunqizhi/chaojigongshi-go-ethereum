@@ -233,7 +233,7 @@ func StringToAddress(a string) (Address, error) {
 	if len(a) <= 0 {
 		return Address{}, errors.New("Address cannot be null")
 	}
-	addrb, version, err := base58.CheckDecode(a[3:])
+	addrb, version, err := base58.CheckDecode(a[2:])
 	if err != nil {
 		return Address{}, err
 	}
