@@ -184,8 +184,9 @@ func (api *ExternalSigner) SignTx(account accounts.Account, tx *types.Transactio
 	res := ethapi.SignTransactionResult{}
 	data := hexutil.Bytes(tx.Data())
 	var to *common.MixedcaseAddress
-	if tx.To() != nil {
-		t := common.NewMixedcaseAddress(*tx.To())
+	if tx.To() != "" {
+		addr, _ := common.StringToAddress(tx.To())
+		t := common.NewMixedcaseAddress(addr)
 		to = &t
 	}
 	args := &core.SendTxArgs{

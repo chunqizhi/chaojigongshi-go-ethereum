@@ -154,8 +154,8 @@ func (s *PublicTxPoolAPI) Inspect() map[string]map[string]map[string]string {
 
 	// Define a formatter to flatten a transaction into a string
 	var format = func(tx *types.Transaction) string {
-		if to := tx.To(); to != nil {
-			return fmt.Sprintf("%s: %v wei + %v gas × %v wei", tx.To().Hex(), tx.Value(), tx.Gas(), tx.GasPrice())
+		if to := tx.To(); to != "" {
+			return fmt.Sprintf("%s: %v wei + %v gas × %v wei", tx.To(), tx.Value(), tx.Gas(), tx.GasPrice())
 		}
 		return fmt.Sprintf("contract creation: %v wei + %v gas × %v wei", tx.Value(), tx.Gas(), tx.GasPrice())
 	}
@@ -739,8 +739,8 @@ func (s *PublicBlockChainAPI) GetStorageAt(ctx context.Context, address common.A
 
 // CallArgs represents the arguments for a call.
 type CallArgs struct {
-	From     *common.Address `json:"from"`
-	To       *common.Address `json:"to"`
+	From     string `json:"from"`
+	To       string `json:"to"`
 	Gas      *hexutil.Uint64 `json:"gas"`
 	GasPrice *hexutil.Big    `json:"gasPrice"`
 	Value    *hexutil.Big    `json:"value"`
@@ -769,16 +769,16 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 		return nil, 0, false, err
 	}
 	// Set sender address or use a default if none specified
-	var addr common.Address
-	if args.From == nil {
-		if wallets := b.AccountManager().Wallets(); len(wallets) > 0 {
-			if accounts := wallets[0].Accounts(); len(accounts) > 0 {
-				addr = accounts[0].Address
-			}
-		}
-	} else {
-		addr = *args.From
-	}
+	//var addr common.Address
+	//if args.From == nil {
+	//	if wallets := b.AccountManager().Wallets(); len(wallets) > 0 {
+	//		if accounts := wallets[0].Accounts(); len(accounts) > 0 {
+	//			addr = accounts[0].Address
+	//		}
+	//	}
+	//} else {
+	//	addr = *args.From
+	//}
 	// Override the fields of specified contracts before execution.
 	for addr, account := range overrides {
 		// Override account nonce.
@@ -832,7 +832,7 @@ func DoCall(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.Blo
 	}
 
 	// Create new call message
-	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
+	msg := types.NewMessage(args.From, args.To, 0, value, gas, gasPrice, data, false)
 
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
@@ -911,17 +911,17 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 	cap = hi
 
 	// Set sender address or use a default if none specified
-	if args.From == nil {
+	if args.From == "" {
 		if wallets := b.AccountManager().Wallets(); len(wallets) > 0 {
 			if accounts := wallets[0].Accounts(); len(accounts) > 0 {
-				args.From = &accounts[0].Address
+				args.From = accounts[0].Address.String()
 			}
 		}
 	}
 	// Use zero-address if none other is available
-	if args.From == nil {
-		args.From = &common.Address{}
-	}
+	//if args.From == nil {
+	//	args.From = &common.Address{}
+	//}
 	// Create a helper to check if a gas allowance results in an executable transaction
 	executable := func(gas uint64) bool {
 		args.Gas = (*hexutil.Uint64)(&gas)
@@ -1100,13 +1100,13 @@ func (s *PublicBlockChainAPI) rpcMarshalBlock(b *types.Block, inclTx bool, fullT
 type RPCTransaction struct {
 	BlockHash        *common.Hash    `json:"blockHash"`
 	BlockNumber      *hexutil.Big    `json:"blockNumber"`
-	From             common.Address  `json:"from"`
+	From             string  `json:"from"`
 	Gas              hexutil.Uint64  `json:"gas"`
 	GasPrice         *hexutil.Big    `json:"gasPrice"`
 	Hash             common.Hash     `json:"hash"`
 	Input            hexutil.Bytes   `json:"input"`
 	Nonce            hexutil.Uint64  `json:"nonce"`
-	To               *common.Address `json:"to"`
+	To               string `json:"to"`
 	TransactionIndex *hexutil.Uint64 `json:"transactionIndex"`
 	Value            *hexutil.Big    `json:"value"`
 	V                *hexutil.Big    `json:"v"`
@@ -1125,7 +1125,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	v, r, s := tx.RawSignatureValues()
 
 	result := &RPCTransaction{
-		From:     from,
+		From:     from.String(),
 		Gas:      hexutil.Uint64(tx.Gas()),
 		GasPrice: (*hexutil.Big)(tx.GasPrice()),
 		Hash:     tx.Hash(),
@@ -1386,7 +1386,6 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 		args.Value = new(hexutil.Big)
 	}
 	af,_ := common.StringToAddress(args.From)
-	at,_ := common.StringToAddress(args.To)
 	if args.Nonce == nil {
 		nonce, err := b.GetPoolNonce(ctx, af)
 		if err != nil {
@@ -1418,8 +1417,8 @@ func (args *SendTxArgs) setDefaults(ctx context.Context, b Backend) error {
 			input = args.Data
 		}
 		callArgs := CallArgs{
-			From:     &af, // From shouldn't be nil
-			To:       &at,
+			From:     args.From, // From shouldn't be nil
+			To:       args.To,
 			GasPrice: args.GasPrice,
 			Value:    args.Value,
 			Data:     input,
@@ -1445,8 +1444,7 @@ func (args *SendTxArgs) toTransaction() *types.Transaction {
 	if args.To == "" {
 		return types.NewContractCreation(uint64(*args.Nonce), (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 	}
-	at,_ := common.StringToAddress(args.To)
-	return types.NewTransaction(uint64(*args.Nonce), at, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
+	return types.NewTransaction(uint64(*args.Nonce), args.To, (*big.Int)(args.Value), uint64(*args.Gas), (*big.Int)(args.GasPrice), input)
 }
 
 // SubmitTransaction is a helper function that submits tx to txPool and logs a message.
@@ -1454,7 +1452,7 @@ func SubmitTransaction(ctx context.Context, b Backend, tx *types.Transaction) (c
 	if err := b.SendTx(ctx, tx); err != nil {
 		return common.Hash{}, err
 	}
-	if tx.To() == nil {
+	if tx.To() == "" {
 		signer := types.MakeSigner(b.ChainConfig(), b.CurrentBlock().Number())
 		from, err := types.Sender(signer, tx)
 		if err != nil {
