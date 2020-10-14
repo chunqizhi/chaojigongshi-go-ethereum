@@ -5495,6 +5495,10 @@ require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof requ
           outputFormatter: utils.toDecimal
         }),
         new Property({
+          name: 'GetCurrentBlockDifficulty',
+          getter: 'eth_getCurrentBlockDifficulty',
+        }),
+        new Property({
           name: 'protocolVersion',
           getter: 'eth_protocolVersion'
         })
